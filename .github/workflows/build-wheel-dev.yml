@@ -6,9 +6,8 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  build:
+  checkout:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -17,6 +16,15 @@ jobs:
         run: |
           echo "Repository checked out on runner:" 
           ls -la
+
+  build:
+    needs: checkout
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (fresh in build job)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
@@ -27,17 +35,7 @@ jobs:
         run: |
           curl -sSL https://install.python-poetry.org | python -
           echo "${HOME}/.local/bin" >> $GITHUB_PATH
-
-      - name: Cache Poetry and pip
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pypoetry
-            ~/.cache/pip
-          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-poetry-
-
+      
       - name: Install project dependencies (Poetry)
         run: |
           poetry config virtualenvs.create false
@@ -50,5 +48,4 @@ jobs:
       - name: Show dist contents
         run: |
           echo "dist contents:" 
-          ls
           ls -la dist || true
