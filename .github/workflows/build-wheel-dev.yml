@@ -45,4 +45,5 @@ jobs:
       - name: Show dist contents
         run: |
           echo "dist contents:" 
+          ls
           ls -la dist || true
