@@ -19,6 +19,7 @@ jobs:
 
   build:
     needs: checkout
+    if: ${{ needs.checkout.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository (fresh in build job)
