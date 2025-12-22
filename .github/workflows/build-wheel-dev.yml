@@ -1,0 +1,48 @@
+name: Build wheel on development push
+
+on:
+  push:
+    branches: [development]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python -
+          echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Cache Poetry and pip
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      - name: Install project dependencies (Poetry)
+        run: |
+          poetry config virtualenvs.create false
+          poetry install --no-dev --no-interaction --no-ansi
+
+      - name: Build wheel
+        run: |
+          poetry build -f wheel
+
+      - name: Show dist contents
+        run: |
+          echo "dist contents:" 
+          ls -la dist || true
