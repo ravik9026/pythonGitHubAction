@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "python-github-action"
+version = "0.1.0"
+description = "Example project to build a wheel via CI"
+authors = ["You <you@example.com>"]
+packages = [
+  { include = "notes_app" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+Flask = "^3.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
