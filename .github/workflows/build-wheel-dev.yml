@@ -1,4 +1,4 @@
-name: Build wheel on development push
+name: checkout application code and Build wheel on development push
 
 on:
   push:
@@ -12,6 +12,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Show checked-out files
+        run: |
+          echo "Repository checked out on runner:" 
+          ls -la
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
