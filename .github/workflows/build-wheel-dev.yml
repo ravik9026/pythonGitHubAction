@@ -59,7 +59,7 @@ jobs:
 
   publish:
     needs: build
-    if: ${{ needs.build.result == 'success' && (secrets.ARTIFACTORY_URL != '' && secrets.ARTIFACTORY_REPO != '' && (secrets.ARTIFACTORY_USERNAME != '' || secrets.ARTIFACTORY_API_KEY != '')) }}
+    if: ${{ needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Download wheel artifact
@@ -72,7 +72,13 @@ jobs:
         run: |
           ls -la downloaded-wheel || true
 
+      - name: Skip publish (missing Artifactory secrets)
+        if: ${{ !(secrets.ARTIFACTORY_URL != '' && secrets.ARTIFACTORY_REPO != '' && (secrets.ARTIFACTORY_USERNAME != '' || secrets.ARTIFACTORY_API_KEY != '')) }}
+        run: |
+          echo "Skipping publish: missing Artifactory secrets. Set ARTIFACTORY_URL, ARTIFACTORY_REPO and either ARTIFACTORY_API_KEY or ARTIFACTORY_USERNAME/ARTIFACTORY_PASSWORD."
+
       - name: Upload wheel to JFrog Artifactory
+        if: ${{ secrets.ARTIFACTORY_URL != '' && secrets.ARTIFACTORY_REPO != '' && (secrets.ARTIFACTORY_USERNAME != '' || secrets.ARTIFACTORY_API_KEY != '') }}
         env:
           ARTIFACTORY_URL: ${{ secrets.ARTIFACTORY_URL }}
           ARTIFACTORY_REPO: ${{ secrets.ARTIFACTORY_REPO }}
