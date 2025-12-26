@@ -82,15 +82,27 @@ jobs:
           ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
         run: |
           set -euo pipefail
-          echo "Pinging Artifactory using API token..."
-          status=$(curl -s -o /dev/null -w "%{http_code}" -u __token:${ARTIFACTORY_API_KEY} https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/ || true)
-          echo "Artifactory HTTP status: $status"
-          if [[ "$status" -ge 200 && "$status" -lt 400 ]]; then
-            echo "Artifactory reachable with API token"
-          else
-            echo "Failed to reach Artifactory with API token (HTTP $status)" >&2
-            exit 1
+          echo "Checking ARTIFACTORY_API_KEY appears set (length): ${#ARTIFACTORY_API_KEY}"
+
+          echo "Trying Artifactory access using X-JFrog-Art-Api header..."
+          status_header=$(curl -s -o /dev/null -w "%{http_code}" -H "X-JFrog-Art-Api: ${ARTIFACTORY_API_KEY}" https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark/ || true)
+          echo "Header auth HTTP status: $status_header"
+          if [[ "$status_header" -ge 200 && "$status_header" -lt 400 ]]; then
+            echo "Artifactory reachable with X-JFrog-Art-Api header"
+            exit 0
           fi
+
+          echo "Header auth failed (HTTP $status_header). Trying basic auth with __token as username..."
+          status_basic=$(curl -s -o /dev/null -w "%{http_code}" -u __token:${ARTIFACTORY_API_KEY} https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark/ || true)
+          echo "Basic auth HTTP status: $status_basic"
+          if [[ "$status_basic" -ge 200 && "$status_basic" -lt 400 ]]; then
+            echo "Artifactory reachable with basic auth (__token)"
+            exit 0
+          fi
+
+          echo "Both header and basic auth failed (header: $status_header, basic: $status_basic)" >&2
+          echo "Tip: Verify the secret value, token permissions (deploy to the target repo), and that the token is not expired." >&2
+          exit 1
 
       - name: Validate Artifactory access (username/password)
         if: ${{ steps.check-creds.outputs.use_api_key == 'false' }}
