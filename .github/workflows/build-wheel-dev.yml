@@ -57,38 +57,6 @@ jobs:
           name: wheel
           path: dist/*.whl
 
-  publish:
-    needs: build
-    if: ${{ needs.build.result == 'success' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download wheel artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: wheel
-          path: downloaded-wheel
-
-      - name: Show downloaded files
-        run: |
-          ls -la downloaded-wheel || true
-
-      - name: Install Poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python -
-          echo "${HOME}/.local/bin" >> $GITHUB_PATH
-
-      - name: Checkout repository (needed for pyproject.toml)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Prepare dist directory
-        run: |
-          mkdir -p dist
-          mv downloaded-wheel/*.whl dist/ || true
-          echo "dist now contains:" 
-          ls -la dist || true
-
       - name: Check Artifactory credentials
         id: check-creds
         if: always()
@@ -108,24 +76,63 @@ jobs:
         run: |
           echo "Skipping publish: set ARTIFACTORY_API_KEY or ARTIFACTORY_USERNAME and ARTIFACTORY_PASSWORD in repository secrets"
 
-      - name: Publish to JFrog (Poetry) — API token
+      - name: Validate Artifactory access (API token)
         if: ${{ steps.check-creds.outputs.use_api_key == 'true' }}
         env:
           ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
         run: |
           set -euo pipefail
-          poetry config repositories.jfrog https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark
-          poetry config http-basic.jfrog __token "${ARTIFACTORY_API_KEY}"
-          poetry publish -r jfrog --no-interaction
+          echo "Pinging Artifactory using API token..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -u __token:${ARTIFACTORY_API_KEY} https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark/ || true)
+          echo "Artifactory HTTP status: $status"
+          if [[ "$status" -ge 200 && "$status" -lt 400 ]]; then
+            echo "Artifactory reachable with API token"
+          else
+            echo "Failed to reach Artifactory with API token (HTTP $status)" >&2
+            exit 1
+          fi
 
-      - name: Publish to JFrog (Poetry) — username/password
+      - name: Validate Artifactory access (username/password)
         if: ${{ steps.check-creds.outputs.use_api_key == 'false' }}
         env:
           ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
           ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
         run: |
           set -euo pipefail
+          echo "Pinging Artifactory using username/password..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -u ${ARTIFACTORY_USERNAME}:${ARTIFACTORY_PASSWORD} https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark/ || true)
+          echo "Artifactory HTTP status: $status"
+          if [[ "$status" -ge 200 && "$status" -lt 400 ]]; then
+            echo "Artifactory reachable with username/password"
+          else
+            echo "Failed to reach Artifactory with username/password (HTTP $status)" >&2
+            exit 1
+          fi
+
+      - name: Configure Poetry repository
+        if: ${{ steps.check-creds.outputs.can_publish == 'true' }}
+        run: |
           poetry config repositories.jfrog https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark
+
+      - name: Configure Poetry auth (API token)
+        if: ${{ steps.check-creds.outputs.use_api_key == 'true' }}
+        env:
+          ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
+        run: |
+          poetry config http-basic.jfrog __token "${ARTIFACTORY_API_KEY}"
+
+      - name: Configure Poetry auth (username/password)
+        if: ${{ steps.check-creds.outputs.use_api_key == 'false' }}
+        env:
+          ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
+          ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
+        run: |
           poetry config http-basic.jfrog "${ARTIFACTORY_USERNAME}" "${ARTIFACTORY_PASSWORD}"
-          poetry publish -r jfrog --no-interaction
+
+      - name: Publish to JFrog (Poetry)
+        if: ${{ steps.check-creds.outputs.can_publish == 'true' }}
+        run: |
+          set -euo pipefail
+          poetry publish -r jfrog --build --no-interaction
+
       
