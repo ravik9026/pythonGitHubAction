@@ -83,18 +83,32 @@ jobs:
           mv downloaded-wheel/*.whl dist/ || true
           ls -la dist || true
 
+      - name: Check Artifactory credentials
+        id: check-creds
+        run: |
+          # determine whether we can publish and which method to use
+          if [ -n "${{ secrets.ARTIFACTORY_API_KEY }}" ]; then
+            echo "can_publish=true" >> $GITHUB_OUTPUT
+            echo "use_api_key=true" >> $GITHUB_OUTPUT
+          elif [ -n "${{ secrets.ARTIFACTORY_USERNAME }}" ] && [ -n "${{ secrets.ARTIFACTORY_PASSWORD }}" ]; then
+            echo "can_publish=true" >> $GITHUB_OUTPUT
+            echo "use_api_key=false" >> $GITHUB_OUTPUT
+          else
+            echo "can_publish=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Skip publish (missing Artifactory credentials)
-        if: ${{ !(secrets.ARTIFACTORY_API_KEY != '' || (secrets.ARTIFACTORY_USERNAME != '' && secrets.ARTIFACTORY_PASSWORD != '')) }}
+        if: ${{ steps.check-creds.outputs.can_publish == 'false' }}
         run: |
           echo "Skipping publish: set ARTIFACTORY_API_KEY or ARTIFACTORY_USERNAME and ARTIFACTORY_PASSWORD in repository secrets"
 
       - name: Configure Poetry repository
-        if: ${{ secrets.ARTIFACTORY_API_KEY != '' || (secrets.ARTIFACTORY_USERNAME != '' && secrets.ARTIFACTORY_PASSWORD != '') }}
+        if: ${{ steps.check-creds.outputs.can_publish == 'true' }}
         run: |
           poetry config repositories.jfrog https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark
 
       - name: Publish to JFrog using API key
-        if: ${{ secrets.ARTIFACTORY_API_KEY != '' }}
+        if: ${{ steps.check-creds.outputs.use_api_key == 'true' }}
         env:
           ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
         run: |
@@ -102,7 +116,7 @@ jobs:
           poetry publish -r jfrog --username __token --password "${ARTIFACTORY_API_KEY}" --no-interaction
 
       - name: Publish to JFrog using username/password
-        if: ${{ secrets.ARTIFACTORY_API_KEY == '' && secrets.ARTIFACTORY_USERNAME != '' && secrets.ARTIFACTORY_PASSWORD != '' }}
+        if: ${{ steps.check-creds.outputs.use_api_key == 'false' }}
         env:
           ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
           ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
