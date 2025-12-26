@@ -88,7 +88,7 @@ jobs:
           ping_status=$(curl -s -o /dev/null -w "%{http_code}" https://ravik9026.jfrog.io/artifactory/api/system/ping || true)
           echo "System ping HTTP status: $ping_status"
 
-          repo_api='https://ravik9026.jfrog.io/artifactory/api/storage/altera-val-pypi-local/quark?list=1'
+          repo_api='https://ravik9026.jfrog.io/artifactory/api/storage/altera-val-pypi-local?list=1'
 
           echo "Trying Artifactory access using X-JFrog-Art-Api header to $repo_api ..."
           status_header=$(curl -s -o /tmp/resp_header -w "%{http_code}" -H "X-JFrog-Art-Api: ${ARTIFACTORY_API_KEY}" "${repo_api}" || true)
@@ -134,7 +134,7 @@ jobs:
 
           echo "All authentication attempts failed (header: $status_header, basic: $status_basic, bearer: $status_bearer)" >&2
           echo "Possible causes: token value is wrong, token lacks permission to list the target repository, or the repository path differs." >&2
-          echo "Next steps: verify the token and that it has 'deploy' permission on 'altera-val-pypi-local/quark', or try a user API key instead." >&2
+          echo "Next steps: verify the token and that it has 'deploy' permission on 'altera-val-pypi-local', or try a user API key instead." >&2
           exit 1
 
       - name: Validate Artifactory access (username/password)
@@ -148,7 +148,7 @@ jobs:
           ping_status=$(curl -s -o /dev/null -w "%{http_code}" https://ravik9026.jfrog.io/artifactory/api/system/ping || true)
           echo "System ping HTTP status: $ping_status"
 
-          repo_api='https://ravik9026.jfrog.io/artifactory/api/storage/altera-val-pypi-local/quark?list=1'
+          repo_api='https://ravik9026.jfrog.io/artifactory/api/storage/altera-val-pypi-local?list=1'
 
           echo "Trying Artifactory access using username/password to $repo_api ..."
           status=$(curl -s -o /tmp/resp_up -w "%{http_code}" -u ${ARTIFACTORY_USERNAME}:${ARTIFACTORY_PASSWORD} "${repo_api}" || true)
