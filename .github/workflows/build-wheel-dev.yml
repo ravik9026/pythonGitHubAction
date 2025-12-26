@@ -84,12 +84,10 @@ jobs:
           ls -la dist || true
       
       - name: Configure Poetry repository
-        if: ${{ steps.check-creds.outputs.can_publish == 'true' }}
         run: |
           poetry config repositories.jfrog https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark
 
       - name: Upload wheel to JFrog (curl)
-        if: ${{ steps.check-creds.outputs.can_publish == 'true' }}
         env:
           ARTIFACTORY_URL: "https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark"
           ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
