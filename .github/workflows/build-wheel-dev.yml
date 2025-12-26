@@ -107,19 +107,32 @@ jobs:
         run: |
           poetry config repositories.jfrog https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark
 
-      - name: Publish to JFrog using API key
-        if: ${{ steps.check-creds.outputs.use_api_key == 'true' }}
+      - name: Upload wheel to JFrog (curl)
+        if: ${{ steps.check-creds.outputs.can_publish == 'true' }}
         env:
+          ARTIFACTORY_URL: "https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark"
           ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
-        run: |
-          set -euo pipefail
-          poetry publish -r jfrog --username __token --password "${ARTIFACTORY_API_KEY}" --no-interaction
-
-      - name: Publish to JFrog using username/password
-        if: ${{ steps.check-creds.outputs.use_api_key == 'false' }}
-        env:
           ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
           ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
         run: |
           set -euo pipefail
-          poetry publish -r jfrog --username "${ARTIFACTORY_USERNAME}" --password "${ARTIFACTORY_PASSWORD}" --no-interaction
+          WHEEL_FILE=$(ls dist/*.whl | head -n 1 || true)
+          if [ -z "$WHEEL_FILE" ]; then
+            echo "No wheel file found to upload" >&2
+            exit 1
+          fi
+          WHEEL_BASENAME=$(basename "$WHEEL_FILE")
+
+          if [ -n "${ARTIFACTORY_API_KEY:-}" ]; then
+            echo "Uploading $WHEEL_BASENAME to $ARTIFACTORY_URL using API key"
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${ARTIFACTORY_API_KEY}" -T "$WHEEL_FILE" "${ARTIFACTORY_URL}/${WHEEL_BASENAME}")
+          else
+            echo "Uploading $WHEEL_BASENAME to $ARTIFACTORY_URL using username/password"
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u "${ARTIFACTORY_USERNAME}:${ARTIFACTORY_PASSWORD}" -T "$WHEEL_FILE" "${ARTIFACTORY_URL}/${WHEEL_BASENAME}")
+          fi
+
+          echo "Artifactory returned HTTP status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "Upload failed with status $HTTP_STATUS" >&2
+            exit 1
+          fi
