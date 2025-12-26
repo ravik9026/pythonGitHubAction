@@ -82,9 +82,30 @@ jobs:
           mkdir -p dist
           mv downloaded-wheel/*.whl dist/ || true
           ls -la dist || true
-      
-      - name: Configure Poetry repository
+
+      - name: Checkout repository (needed for pyproject.toml)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publish to JFrog (Poetry) — API token
+        if: ${{ secrets.ARTIFACTORY_API_KEY != '' }}
+        env:
+          ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
         run: |
+          set -euo pipefail
           poetry config repositories.jfrog https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark
-          poetry publish --repository altera-val-pypi-local/quark --username ${{secrets.ARTIFACTORY_USERNAME }} --password ${{ secrets.ARTIFACTORY_PASSWORD}}
+          poetry config http-basic.jfrog __token "${ARTIFACTORY_API_KEY}"
+          poetry publish -r jfrog --no-interaction
+
+      - name: Publish to JFrog (Poetry) — username/password
+        if: ${{ secrets.ARTIFACTORY_API_KEY == '' && secrets.ARTIFACTORY_USERNAME != '' && secrets.ARTIFACTORY_PASSWORD != '' }}
+        env:
+          ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
+          ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          poetry config repositories.jfrog https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark
+          poetry config http-basic.jfrog "${ARTIFACTORY_USERNAME}" "${ARTIFACTORY_PASSWORD}"
+          poetry publish -r jfrog --no-interaction
       
