@@ -83,7 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Pinging Artifactory using API token..."
-          status=$(curl -s -o /dev/null -w "%{http_code}" -u __token:${ARTIFACTORY_API_KEY} https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark/ || true)
+          status=$(curl -s -o /dev/null -w "%{http_code}" -u __token:${ARTIFACTORY_API_KEY} https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/ || true)
           echo "Artifactory HTTP status: $status"
           if [[ "$status" -ge 200 && "$status" -lt 400 ]]; then
             echo "Artifactory reachable with API token"
@@ -100,7 +100,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Pinging Artifactory using username/password..."
-          status=$(curl -s -o /dev/null -w "%{http_code}" -u ${ARTIFACTORY_USERNAME}:${ARTIFACTORY_PASSWORD} https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark/ || true)
+          status=$(curl -s -o /dev/null -w "%{http_code}" -u ${ARTIFACTORY_USERNAME}:${ARTIFACTORY_PASSWORD} https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/ || true)
           echo "Artifactory HTTP status: $status"
           if [[ "$status" -ge 200 && "$status" -lt 400 ]]; then
             echo "Artifactory reachable with username/password"
@@ -112,7 +112,7 @@ jobs:
       - name: Configure Poetry repository
         if: ${{ steps.check-creds.outputs.can_publish == 'true' }}
         run: |
-          poetry config repositories.jfrog https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark
+          poetry config repositories.jfrog https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local
 
       - name: Configure Poetry auth (API token)
         if: ${{ steps.check-creds.outputs.use_api_key == 'true' }}
