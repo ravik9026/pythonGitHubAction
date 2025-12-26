@@ -77,16 +77,17 @@ jobs:
           curl -sSL https://install.python-poetry.org | python -
           echo "${HOME}/.local/bin" >> $GITHUB_PATH
 
-      - name: Prepare dist directory
-        run: |
-          mkdir -p dist
-          mv downloaded-wheel/*.whl dist/ || true
-          ls -la dist || true
-
       - name: Checkout repository (needed for pyproject.toml)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Prepare dist directory
+        run: |
+          mkdir -p dist
+          mv downloaded-wheel/*.whl dist/ || true
+          echo "dist now contains:" 
+          ls -la dist || true
 
       - name: Check Artifactory credentials
         id: check-creds
