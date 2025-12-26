@@ -186,10 +186,27 @@ jobs:
         run: |
           poetry config http-basic.jfrog "${ARTIFACTORY_USERNAME}" "${ARTIFACTORY_PASSWORD}"
 
-      - name: Publish to JFrog (Poetry)
+      - name: Publish to JFrog (Poetry) — verbose
         if: ${{ steps.check-creds.outputs.can_publish == 'true' }}
+        env:
+          POETRY_VIRTUALENVS_CREATE: "false"
         run: |
           set -euo pipefail
-          poetry publish -r jfrog --build --no-interaction
+          set -x
+          echo "=== Poetry version and environment ==="
+          poetry --version || true
+          echo "=== Poetry config (all) ==="
+          poetry config --list || true
+          echo "=== Show Poetry config file (if exists) ==="
+          cat "$HOME/.config/pypoetry/config.toml" || true
+
+          echo "=== dist contents before publish ==="
+          ls -la dist || true
+
+          echo "=== Build wheel (explicit) ==="
+          poetry build -f wheel || true
+
+          echo "=== Running poetry publish (verbose) ==="
+          poetry publish -r jfrog --build --no-interaction -vvv
 
       
