@@ -88,8 +88,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check Artifactory credentials
+        id: check-creds
+        if: always()
+        run: |
+          if [ -n "${{ secrets.ARTIFACTORY_API_KEY }}" ]; then
+            echo "can_publish=true" >> $GITHUB_OUTPUT
+            echo "use_api_key=true" >> $GITHUB_OUTPUT
+          elif [ -n "${{ secrets.ARTIFACTORY_USERNAME }}" ] && [ -n "${{ secrets.ARTIFACTORY_PASSWORD }}" ]; then
+            echo "can_publish=true" >> $GITHUB_OUTPUT
+            echo "use_api_key=false" >> $GITHUB_OUTPUT
+          else
+            echo "can_publish=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip publish (missing Artifactory credentials)
+        if: ${{ steps.check-creds.outputs.can_publish == 'false' }}
+        run: |
+          echo "Skipping publish: set ARTIFACTORY_API_KEY or ARTIFACTORY_USERNAME and ARTIFACTORY_PASSWORD in repository secrets"
+
       - name: Publish to JFrog (Poetry) — API token
-        if: ${{ secrets.ARTIFACTORY_API_KEY != '' }}
+        if: ${{ steps.check-creds.outputs.use_api_key == 'true' }}
         env:
           ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
         run: |
@@ -99,7 +118,7 @@ jobs:
           poetry publish -r jfrog --no-interaction
 
       - name: Publish to JFrog (Poetry) — username/password
-        if: ${{ secrets.ARTIFACTORY_API_KEY == '' && secrets.ARTIFACTORY_USERNAME != '' && secrets.ARTIFACTORY_PASSWORD != '' }}
+        if: ${{ steps.check-creds.outputs.use_api_key == 'false' }}
         env:
           ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
           ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
