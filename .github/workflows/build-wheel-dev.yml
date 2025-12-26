@@ -71,3 +71,41 @@ jobs:
       - name: Show downloaded files
         run: |
           ls -la downloaded-wheel || true
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python -
+          echo "${HOME}/.local/bin" >> $GITHUB_PATH
+
+      - name: Prepare dist directory
+        run: |
+          mkdir -p dist
+          mv downloaded-wheel/*.whl dist/ || true
+          ls -la dist || true
+
+      - name: Skip publish (missing Artifactory credentials)
+        if: ${{ !(secrets.ARTIFACTORY_API_KEY != '' || (secrets.ARTIFACTORY_USERNAME != '' && secrets.ARTIFACTORY_PASSWORD != '')) }}
+        run: |
+          echo "Skipping publish: set ARTIFACTORY_API_KEY or ARTIFACTORY_USERNAME and ARTIFACTORY_PASSWORD in repository secrets"
+
+      - name: Configure Poetry repository
+        if: ${{ secrets.ARTIFACTORY_API_KEY != '' || (secrets.ARTIFACTORY_USERNAME != '' && secrets.ARTIFACTORY_PASSWORD != '') }}
+        run: |
+          poetry config repositories.jfrog https://ravik9026.jfrog.io/artifactory/altera-val-pypi-local/quark
+
+      - name: Publish to JFrog using API key
+        if: ${{ secrets.ARTIFACTORY_API_KEY != '' }}
+        env:
+          ARTIFACTORY_API_KEY: ${{ secrets.ARTIFACTORY_API_KEY }}
+        run: |
+          set -euo pipefail
+          poetry publish -r jfrog --username __token --password "${ARTIFACTORY_API_KEY}" --no-interaction
+
+      - name: Publish to JFrog using username/password
+        if: ${{ secrets.ARTIFACTORY_API_KEY == '' && secrets.ARTIFACTORY_USERNAME != '' && secrets.ARTIFACTORY_PASSWORD != '' }}
+        env:
+          ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
+          ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          poetry publish -r jfrog --username "${ARTIFACTORY_USERNAME}" --password "${ARTIFACTORY_PASSWORD}" --no-interaction
